@@ -2,168 +2,138 @@ from flask import Flask, render_template_string, request, jsonify, redirect, url
 import os
 
 app = Flask(__name__)
-app.secret_key = "google_antigravity_secret"
+app.secret_key = "ai_architect_secret_key"
 
-# --- Database Simulation ---
-LIVE_EVENTS = [
-    {"id": 1, "name": "AI Keynote", "status": "LIVE", "time": "14:00", "color": "#d93025"},
-    {"id": 2, "name": "Dev Workshop", "status": "UPCOMING", "time": "16:00", "color": "#fbbc05"},
-]
-TASKS = [
-    {"id": 1, "task": "Stage Mic Check", "status": "Pending", "pts": 50},
-    {"id": 2, "task": "VIP Escort", "status": "Pending", "pts": 100},
-]
-FEEDBACKS = [{"msg": "Great event!", "sentiment": "Positive"}]
+# --- Shared Data State ---
+LIVE_EVENTS = []
+TASKS = []
+AI_LOGS = ["VenueOS AI: System initialized. Waiting for Architect inputs..."]
 
 # --- UI Template ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>VenueOS v3.0 | Enterprise AI</title>
+    <title>VenueOS v4.0 | AI Architect</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --mgr: #1a73e8; --vol: #34a853; --sec: #ea4335; --atn: #fbbc05; --dark: #202124; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f1f3f4; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; }
         
-        /* Glassmorphism Login */
         .overlay { position: fixed; inset: 0; background: var(--dark); z-index: 2000; display: flex; align-items: center; justify-content: center; }
-        .login-card { background: white; padding: 40px; border-radius: 20px; width: 350px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .setup-card { background: white; padding: 40px; border-radius: 20px; width: 450px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: slideUp 0.5s; }
         
-        /* Profile Header */
-        .profile-bar { background: white; padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; }
-        .user-chip { background: #e8f0fe; padding: 5px 15px; border-radius: 20px; font-weight: bold; color: var(--mgr); }
-
-        /* Character Selection */
+        .nav { background: white; padding: 15px 30px; display: flex; justify-content: space-between; border-bottom: 2px solid #eee; }
         .char-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 50px; }
-        .char-card { background: white; padding: 30px; border-radius: 20px; text-align: center; cursor: pointer; transition: 0.3s; border-bottom: 8px solid #ccc; }
-        .char-card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
-
-        /* Role Dashboards */
-        .dashboard { padding: 30px; max-width: 1200px; margin: auto; display: none; animation: fadeIn 0.5s; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .char-card { background: white; padding: 30px; border-radius: 20px; text-align: center; cursor: pointer; transition: 0.3s; }
         
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; color: white; margin: 5px 0; }
-        .mgr-bg { background: var(--mgr); } .vol-bg { background: var(--vol); } 
-        .sec-bg { background: var(--sec); } .atn-bg { background: var(--atn); }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .dashboard { padding: 30px; display: none; max-width: 1200px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .ai-chat { background: #f1f3f4; border-radius: 10px; padding: 15px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 13px; }
+        .btn { padding: 12px 25px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
         .hidden { display: none !important; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
     {% if not session.user %}
     <div class="overlay">
-        <div class="login-card">
-            <h2 style="color: var(--mgr)"><i class="fas fa-microchip"></i> VenueOS Login</h2>
+        <div class="setup-card">
+            <h2 style="color:var(--mgr)"><i class="fas fa-robot"></i> Initialize Identity</h2>
             <form action="/login" method="POST">
-                <input type="text" name="name" placeholder="Full Name" required style="width:100%; padding:10px; margin:10px 0; border-radius:8px; border:1px solid #ddd;">
-                <input type="email" name="email" placeholder="Email Address" required style="width:100%; padding:10px; margin:10px 0; border-radius:8px; border:1px solid #ddd;">
-                <input type="number" name="age" placeholder="Age" required style="width:100%; padding:10px; margin:10px 0; border-radius:8px; border:1px solid #ddd;">
-                <button type="submit" class="btn mgr-bg" style="width:100%">Access System</button>
+                <input type="text" name="name" placeholder="Your Name" required>
+                <input type="email" name="email" placeholder="Email" required>
+                <button type="submit" class="btn" style="background:var(--mgr); width:100%">Access VenueOS</button>
             </form>
         </div>
     </div>
     {% endif %}
 
     {% if session.user %}
-    <div class="profile-bar">
-        <h3>🏛️ VenueOS v3.0</h3>
-        <div class="user-chip">
-            <i class="fas fa-user-circle"></i> {{session.user.name}} ({{session.user.age}})
-            <a href="/logout" style="margin-left:10px; color:var(--sec); text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-        </div>
+    <div class="nav">
+        <h3>🏛️ VenueOS <span style="font-weight:100">AI Architect</span></h3>
+        <div>Welcome, <b>{{session.user.name}}</b> | <a href="/logout">Exit</a></div>
     </div>
 
     <div id="selection-screen">
-        <h2 style="text-align:center; margin-top:40px;">Choose Your Role</h2>
         <div class="char-grid">
-            <div class="char-card" style="border-color: var(--mgr)" onclick="openRole('Manager')">
+            <div class="char-card" style="border-bottom: 8px solid var(--mgr)" onclick="openSetup('Manager')">
                 <i class="fas fa-user-tie fa-4x" style="color: var(--mgr)"></i>
                 <h3>Manager</h3>
-                <p>Full Control & AI Insights</p>
+                <p>Architect the Event</p>
             </div>
-            <div class="char-card" style="border-color: var(--vol)" onclick="openRole('Volunteer')">
+            <div class="char-card" style="border-bottom: 8px solid var(--vol)" onclick="openSetup('Volunteer')">
                 <i class="fas fa-hands-helping fa-4x" style="color: var(--vol)"></i>
                 <h3>Volunteer</h3>
-                <p>Tasks & Rewards</p>
+                <p>Deploy Workforce</p>
             </div>
-            <div class="char-card" style="border-color: var(--sec)" onclick="openRole('Security')">
+            <div class="char-card" style="border-bottom: 8px solid var(--sec)" onclick="openSetup('Security')">
                 <i class="fas fa-shield-alt fa-4x" style="color: var(--sec)"></i>
                 <h3>Security</h3>
-                <p>Safety & Heatmaps</p>
+                <p>Setup Surveillance</p>
             </div>
-            <div class="char-card" style="border-color: var(--atn)" onclick="openRole('Attendee')">
+            <div class="char-card" style="border-bottom: 8px solid var(--atn)" onclick="openSetup('Attendee')">
                 <i class="fas fa-ticket-alt fa-4x" style="color: var(--atn)"></i>
                 <h3>Attendee</h3>
-                <p>Schedule & Feedback</p>
+                <p>Join the Experience</p>
             </div>
         </div>
     </div>
 
-    <div id="role-container">
-        <button class="btn mgr-bg" onclick="goBack()" style="margin: 20px 50px;"><i class="fas fa-arrow-left"></i> Back to Selection</button>
+    <div id="setup-container" class="overlay hidden">
+        <div class="setup-card">
+            <h2 id="setup-title">Setup</h2>
+            <div id="setup-form-content"></div>
+            <button class="btn" onclick="completeSetup()" style="background:var(--dark); width:100%; margin-top:10px;">Build Dashboard</button>
+        </div>
+    </div>
+
+    <div id="main-dashboards">
+        <button class="btn" onclick="goBack()" style="margin: 20px 50px; background:#ddd; color:black;"><i class="fas fa-arrow-left"></i> Selection</button>
         
-        <div id="Manager-db" class="dashboard role-view">
-            <h1 style="color:var(--mgr)">👔 Manager Command Center</h1>
-            <div class="grid">
-                <div class="card">
-                    <h4>Add Event</h4>
-                    <form action="/add_event" method="POST">
-                        <input type="text" name="name" placeholder="Event Name" style="width:90%; padding:8px; margin-bottom:10px;">
-                        <button class="btn mgr-bg" style="width:100%">Create Event</button>
-                    </form>
-                </div>
-                <div class="card">
-                    <h4>AI Crowd Prediction</h4>
-                    <canvas id="crowdChart"></canvas>
-                </div>
+        <div id="Manager-db" class="dashboard">
+            <h1 style="color:var(--mgr)">👔 AI Event Strategy</h1>
+            <div class="card" id="mgr-summary"></div>
+            <div class="card">
+                <h4>AI Simulation: Crowd Flow</h4>
+                <canvas id="mgrChart"></canvas>
             </div>
         </div>
 
-        <div id="Volunteer-db" class="dashboard role-view">
-            <h1 style="color:var(--vol)">🛠️ Staff Workspace</h1>
-            <div class="grid">
-                <div class="card">
-                    <h4>Your Points: <span style="color:var(--vol)">450 XP</span></h4>
-                    <div style="height:10px; background:#eee; border-radius:5px;"><div style="width:70%; height:100%; background:var(--vol); border-radius:5px;"></div></div>
-                </div>
-                <div class="card">
-                    <h4>Active Tasks</h4>
-                    {% for t in tasks %}
-                    <div style="border-bottom:1px solid #eee; padding:10px 0; display:flex; justify-content:space-between;">
-                        <span>{{t.task}}</span>
-                        <button class="btn vol-bg" style="font-size:10px;">Done (+{{t.pts}})</button>
-                    </div>
-                    {% endfor %}
-                </div>
+        <div id="Volunteer-db" class="dashboard">
+            <h1 style="color:var(--vol)">🛠️ Workforce Grid</h1>
+            <div class="card" id="vol-summary"></div>
+            <div class="card">
+                <h4>Smart Task List (Auto-Generated)</h4>
+                <div id="task-list"></div>
             </div>
         </div>
 
-        <div id="Security-db" class="dashboard role-view">
-            <h1 style="color:var(--sec)">🛡️ Security Grid</h1>
-            <div class="card" style="text-align:center; background:#ffebee;">
-                <h3 style="color:var(--sec)"><i class="fas fa-exclamation-triangle pulse"></i> ALERT: UNUSUAL CROWD AT GATE 2</h3>
-            </div>
-            <div class="card" style="margin-top:20px; height:300px; background: url('https://upload.wikimedia.org/wikipedia/commons/9/9a/Sample_Floorplan.jpg') center/cover;">
-                <div style="width:50px; height:50px; background:rgba(234,67,53,0.6); border-radius:50%; margin:100px; border:2px solid red;"></div>
+        <div id="Security-db" class="dashboard">
+            <h1 style="color:var(--sec)">🛡️ Sentinel View</h1>
+            <div class="card" id="sec-summary"></div>
+            <div class="card" style="background:var(--dark); color:#0f0; padding:20px; font-family:monospace;">
+                >> BOOTING SURVEILLANCE...<br>
+                >> SCANNING ZONES...<br>
+                >> <span id="sec-status">ACTIVE</span>
             </div>
         </div>
 
-        <div id="Attendee-db" class="dashboard role-view">
-            <h1 style="color:var(--atn)">🎟️ Attendee Experience</h1>
-            <div class="grid">
-                <div class="card">
-                    <h4>Live Feedback</h4>
-                    <canvas id="sentimentChart"></canvas>
+        <div id="Attendee-db" class="dashboard">
+            <h1 style="color:var(--atn)">🎟️ Live Experience</h1>
+            <div class="card">
+                <h4><i class="fas fa-robot"></i> Ask Venue AI</h4>
+                <div class="ai-chat" id="ai-messages">
+                    {% for log in logs %}<p>{{log}}</p>{% endfor %}
                 </div>
-                <div class="card">
-                    <h4>AI Suggestions</h4>
-                    <p><i class="fas fa-coffee"></i> Free Coffee at Hall B - Low Crowd Now!</p>
-                    <p><i class="fas fa-star"></i> Recommended: AI Ethics Keynote at 16:00</p>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <input type="text" id="ai-input" placeholder="Ask about events, food, or exits...">
+                    <button class="btn" style="background:var(--atn)" onclick="askAI()">Send</button>
                 </div>
             </div>
         </div>
@@ -171,38 +141,96 @@ HTML_TEMPLATE = """
     {% endif %}
 
     <script>
-        function openRole(role) {
+        let currentRole = "";
+        let setupData = {};
+
+        function openSetup(role) {
+            currentRole = role;
+            if(role === 'Attendee') { showDashboard(); return; }
+            
+            const content = document.getElementById('setup-form-content');
+            let formHtml = "";
+            
+            if(role === 'Manager') {
+                formHtml = `
+                    <input type="text" id="event_name" placeholder="Event Name (e.g. TechFest 2026)">
+                    <input type="number" id="capacity" placeholder="Expected Crowd Size">
+                    <select id="event_type"><option>Conference</option><option>Music Fest</option><option>Workshop</option></select>
+                `;
+            } else if(role === 'Volunteer') {
+                formHtml = `
+                    <input type="number" id="v_count" placeholder="Number of Volunteers">
+                    <select id="v_dept"><option>Logistics</option><option>Technical</option><option>Hospitality</option></select>
+                `;
+            } else if(role === 'Security') {
+                formHtml = `
+                    <input type="number" id="zones" placeholder="Number of Zones to Monitor">
+                    <select id="risk_level"><option>Low Risk</option><option>Medium Risk</option><option>High Alert</option></select>
+                `;
+            }
+            
+            content.innerHTML = formHtml;
+            document.getElementById('setup-title').innerText = "Architect " + role;
+            document.getElementById('setup-container').classList.remove('hidden');
+        }
+
+        function completeSetup() {
+            document.getElementById('setup-container').classList.add('hidden');
             document.getElementById('selection-screen').classList.add('hidden');
-            document.getElementById('role-container').classList.remove('hidden');
-            document.querySelectorAll('.role-view').forEach(v => v.style.display = 'none');
-            document.getElementById(role + '-db').style.display = 'block';
-            if(role === 'Manager') initManagerChart();
-            if(role === 'Attendee') initSentimentChart();
+            showDashboard();
+        }
+
+        function showDashboard() {
+            document.querySelectorAll('.dashboard').forEach(d => d.style.display = 'none');
+            const db = document.getElementById(currentRole + '-db');
+            db.style.display = 'block';
+
+            if(currentRole === 'Manager') {
+                const name = document.getElementById('event_name').value || "Unnamed Event";
+                const cap = document.getElementById('capacity').value || "0";
+                document.getElementById('mgr-summary').innerHTML = `<h3>Event: ${name}</h3><p>AI Goal: Optimize for ${cap} attendees.</p>`;
+                new Chart(document.getElementById('mgrChart'), {
+                    type: 'bar',
+                    data: { labels: ['Gate A', 'Hall 1', 'Food Court'], datasets: [{label: 'Predicted Density', data: [30, 80, 50], backgroundColor: '#1a73e8'}] }
+                });
+            }
+            
+            if(currentRole === 'Volunteer') {
+                const dept = document.getElementById('v_dept').value;
+                document.getElementById('vol-summary').innerHTML = `<h3>Department: ${dept}</h3>`;
+                document.getElementById('task-list').innerHTML = `<ul><li>Setup ${dept} counters</li><li>Brief Staff</li><li>Sync Comm Channels</li></ul>`;
+            }
+
+            if(currentRole === 'Security') {
+                const risk = document.getElementById('risk_level').value;
+                document.getElementById('sec-summary').innerHTML = `<h3>Risk Status: ${risk}</h3>`;
+                document.getElementById('sec-status').innerText = risk === 'High Alert' ? 'CRITICAL SCANNING' : 'NORMAL MONITORING';
+            }
+        }
+
+        function askAI() {
+            const input = document.getElementById('ai-input');
+            const chat = document.getElementById('ai-messages');
+            if(!input.value) return;
+
+            chat.innerHTML += `<p style="color:var(--mgr)"><b>You:</b> ${input.value}</p>`;
+            
+            // AI Logic Simulation
+            let response = "I'm analyzing your request...";
+            if(input.value.toLowerCase().includes('food')) response = "AI: Food court is in Hall C. Current wait time: 5 mins.";
+            else if(input.value.toLowerCase().includes('event')) response = "AI: The main Keynote starts at 14:00 in the Grand Ballroom.";
+            else response = "AI: System is optimized. No issues detected in your vicinity.";
+
+            setTimeout(() => {
+                chat.innerHTML += `<p style="color:var(--vol)"><b>Venue AI:</b> ${response}</p>`;
+                chat.scrollTop = chat.scrollHeight;
+            }, 800);
+            input.value = "";
         }
 
         function goBack() {
             document.getElementById('selection-screen').classList.remove('hidden');
-            document.getElementById('role-container').classList.add('hidden');
-        }
-
-        function initManagerChart() {
-            new Chart(document.getElementById('crowdChart'), {
-                type: 'line',
-                data: {
-                    labels: ['10am', '12pm', '2pm', '4pm', '6pm'],
-                    datasets: [{ label: 'Crowd %', data: [20, 45, 85, 60, 30], borderColor: '#1a73e8', tension: 0.4 }]
-                }
-            });
-        }
-
-        function initSentimentChart() {
-            new Chart(document.getElementById('sentimentChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Happy', 'Neutral', 'Sad'],
-                    datasets: [{ data: [70, 20, 10], backgroundColor: ['#34a853', '#fbbc05', '#ea4335'] }]
-                }
-            });
+            document.querySelectorAll('.dashboard').forEach(d => d.style.display = 'none');
         }
     </script>
 </body>
@@ -211,26 +239,16 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def home():
-    return render_template_string(HTML_TEMPLATE, tasks=TASKS, events=LIVE_EVENTS)
+    return render_template_string(HTML_TEMPLATE, logs=AI_LOGS)
 
 @app.route('/login', methods=['POST'])
 def login():
-    session['user'] = {
-        "name": request.form.get('name'),
-        "email": request.form.get('email'),
-        "age": request.form.get('age')
-    }
+    session['user'] = {"name": request.form.get('name')}
     return redirect(url_for('home'))
 
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
-    return redirect(url_for('home'))
-
-@app.route('/add_event', methods=['POST'])
-def add_event():
-    name = request.form.get('name')
-    LIVE_EVENTS.append({"id": len(LIVE_EVENTS)+1, "name": name, "status": "UPCOMING", "time": "TBD", "color": "#1a73e8"})
+    session.clear()
     return redirect(url_for('home'))
 
 if __name__ == "__main__":
