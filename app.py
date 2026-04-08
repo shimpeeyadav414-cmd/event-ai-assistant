@@ -1,19 +1,13 @@
-from event_roles import EventRoleAssistant
+from flask import Flask
+import os
 
-def main():
-    print("🎉 Welcome to Event Experience AI Assistant 🎉")
+app = Flask(__name__)
 
-    roles = ["Organizer", "Guest", "Attendee", "Volunteer", "Staff", "Security"]
-
-    for role in roles:
-        assistant = EventRoleAssistant(role, context={"location": "Lucknow, India"})
-        print(f"\n--- {role} Features ---")
-        print(assistant.get_features())
+@app.route('/')
+def home():
+    return "Event AI Assistant is Live!"
 
 if __name__ == "__main__":
-    main()
-from calendar_integration import add_event_to_calendar
-
-if __name__ == "__main__":
-    print("🎉 Welcome to Event Experience AI Assistant 🎉")
-    add_event_to_calendar("Annual Tech Conference - Lucknow")
+    # Render sets the PORT environment variable automatically
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
