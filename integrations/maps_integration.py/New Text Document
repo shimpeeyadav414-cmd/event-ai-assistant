@@ -1,0 +1,2 @@
+def find_nearby_places(location="Lucknow", keyword="restaurant"):
+    return f"🍴 Suggested {keyword}s near {location}."

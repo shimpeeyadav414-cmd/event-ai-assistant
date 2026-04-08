@@ -1,0 +1,2 @@
+def assign_task(task="Help at Gate 1"):
+    return f"✅ Task assigned: {task}"

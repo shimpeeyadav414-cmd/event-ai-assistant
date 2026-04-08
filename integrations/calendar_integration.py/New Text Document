@@ -1,0 +1,2 @@
+def create_event():
+    return "📅 Google Calendar event created successfully."

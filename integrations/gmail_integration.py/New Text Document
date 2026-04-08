@@ -1,0 +1,2 @@
+def send_invite_email(to_email="guest@example.com", subject="Event Invite", body="Join us!"):
+    return f"📧 Email sent to {to_email} with subject '{subject}'."

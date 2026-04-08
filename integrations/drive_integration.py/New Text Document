@@ -1,0 +1,2 @@
+def upload_ticket_to_drive(file_path="ticket.pdf"):
+    return f"🎫 Ticket {file_path} uploaded to Google Drive."
