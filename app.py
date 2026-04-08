@@ -3,56 +3,108 @@ import os
 
 app = Flask(__name__)
 
-# Mock logic for integrations
-def add_calendar_event(name, date):
-    return f"📅 Event '{name}' scheduled for {date}."
+# --- Problem-Solution Database ---
+ROLE_DATA = {
+    "Manager": {
+        "problems": [
+            {"p": "Venue Overbooking", "s": "AI checks Google Calendar and suggests 3 alternative slots."},
+            {"p": "Low Attendee Engagement", "s": "Gmail Automation triggers personalized invites to top 50 VIPs."},
+            {"p": "Budget Leakage", "s": "Google Sheets logic flags expenses exceeding 15% of category limit."},
+            {"p": "Vendor Delay", "s": "AI sends automated 'Urgent' follow-ups via Tasks integration."}
+        ]
+    },
+    "Volunteer": {
+        "problems": [
+            {"p": "Job Confusion", "s": "Personalized Task list fetched from Google Tasks with priority tags."},
+            {"p": "Lost at Venue", "s": "Indoor mapping via Google Maps API highlights assigned zone."},
+            {"p": "Shift Overlap", "s": "AI reshuffles schedule to ensure 30-min break between tasks."},
+            {"p": "Inventory Shortage", "s": "Quick-form update alerts Manager via Gmail instantly."}
+        ]
+    },
+    "Attendee": {
+        "problems": [
+            {"p": "Traffic Delay", "s": "Maps API suggests fastest route and nearby parking in real-time."},
+            {"p": "Missing Schedule", "s": "Digital itinerary synced to local Calendar with push alerts."},
+            {"p": "Food Preference", "s": "AI filters stall locations based on pre-filled dietary tags."},
+            {"p": "Networking Gap", "s": "AI suggests 3 people to meet based on shared LinkedIn interests."}
+        ]
+    },
+    "Security": {
+        "problems": [
+            {"p": "Crowd Bottleneck", "s": "Heatmap logic identifies Gate 2 congestion; redirects to Gate 4."},
+            {"p": "Unauthorized Entry", "s": "Instant alert sent to all Security Tasks with ID photo."},
+            {"p": "Emergency Exit Block", "s": "Real-time verification request sent to nearest Volunteer."},
+            {"p": "Lost & Found", "s": "AI logs item photo and notifies all Attendees via Gmail."}
+        ]
+    }
+}
 
-def send_gmail_invite(email):
-    return f"📩 Invite sent to {email}."
-
-# HTML Template (Directly inside Python for simplicity)
+# --- Frontend with Visual Dashboard ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Smart Event AI Assistant</title>
+    <title>Visual Event AI Solver</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; background: #f4f4f9; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        input { padding: 10px; width: 80%; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px 20px; background: #4285f4; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        #result { margin-top: 20px; font-weight: bold; color: #2e7d32; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; margin: 0; }
+        .nav { background: #1a73e8; color: white; padding: 1rem; text-align: center; font-weight: bold; }
+        .container { max-width: 1000px; margin: 2rem auto; padding: 1rem; }
+        .login-screen { text-align: center; background: white; padding: 3rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .role-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .card { background: white; padding: 1.5rem; border-radius: 10px; border-top: 5px solid #1a73e8; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .problem-tag { color: #d93025; font-weight: bold; font-size: 0.9rem; }
+        .solution-tag { color: #188038; background: #e6f4ea; padding: 5px; border-radius: 4px; display: block; margin-top: 5px; }
+        select, button { padding: 12px; width: 250px; border-radius: 6px; border: 1px solid #ddd; margin: 10px; }
+        button { background: #1a73e8; color: white; border: none; cursor: pointer; font-weight: bold; }
+        .btn-solve { width: 100%; margin-top: 10px; background: #34a853; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>🤖 Smart Event AI</h1>
-        <p>Manage your events with Google Antigravity Logic</p>
-        
-        <input type="text" id="eventName" placeholder="Event Name (e.g. Birthday Party)">
-        <input type="date" id="eventDate">
-        <button onclick="scheduleEvent()">Schedule Event</button>
-        <br><br>
-        <input type="email" id="email" placeholder="Attendee Email">
-        <button onclick="sendInvite()" style="background: #db4437;">Send Invite</button>
-        
-        <div id="result"></div>
+    <div class="nav">🚀 GOOGLE ANTIGRAVITY EVENT SOLVER</div>
+    
+    <div class="container">
+        <div id="login" class="login-screen">
+            <h1>Welcome to AI Control</h1>
+            <p>Select your role to view 4 key solutions</p>
+            <select id="roleSelect">
+                <option value="Manager">Event Manager</option>
+                <option value="Volunteer">Volunteer</option>
+                <option value="Attendee">Attendee</option>
+                <option value="Security">Security Team</option>
+            </select><br>
+            <button onclick="showDashboard()">Launch Visual Dashboard</button>
+        </div>
+
+        <div id="dashboard" class="hidden">
+            <h2 id="roleTitle"></h2>
+            <div id="cardsContainer" class="role-grid"></div>
+            <button onclick="location.reload()" style="background:#5f6368; width:100%; margin-top:20px;">Back to Roles</button>
+        </div>
     </div>
 
     <script>
-        async function scheduleEvent() {
-            const name = document.getElementById('eventName').value;
-            const date = document.getElementById('eventDate').value;
-            const res = await fetch(`/api/schedule?name=${name}&date=${date}`);
-            const data = await res.json();
-            document.getElementById('result').innerText = data.message;
-        }
-
-        async function sendInvite() {
-            const email = document.getElementById('email').value;
-            const res = await fetch(`/api/invite?email=${email}`);
-            const data = await res.json();
-            document.getElementById('result').innerText = data.message;
+        const data = """ + str(ROLE_DATA) + """;
+        
+        function showDashboard() {
+            const role = document.getElementById('roleSelect').value;
+            document.getElementById('login').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('roleTitle').innerText = role + " Strategy Dashboard";
+            
+            let cardsHtml = "";
+            data[role].problems.forEach(item => {
+                cardsHtml += `
+                    <div class="card">
+                        <span class="problem-tag">🚩 PROBLEM:</span>
+                        <div>${item.p}</div>
+                        <span class="solution-tag">💡 AI SOLUTION:</span>
+                        <div>${item.s}</div>
+                        <button class="btn-solve" onclick="alert('Solution deployed via Google Antigravity Logic!')">Deploy Fix</button>
+                    </div>
+                `;
+            });
+            document.getElementById('cardsContainer').innerHTML = cardsHtml;
         }
     </script>
 </body>
@@ -62,17 +114,6 @@ HTML_TEMPLATE = """
 @app.route('/')
 def home():
     return render_template_string(HTML_TEMPLATE)
-
-@app.route('/api/schedule')
-def schedule():
-    name = request.args.get('name', 'General Meeting')
-    date = request.args.get('date', 'Today')
-    return jsonify({"message": add_calendar_event(name, date)})
-
-@app.route('/api/invite')
-def invite():
-    email = request.args.get('email', 'guest@example.com')
-    return jsonify({"message": send_gmail_invite(email)})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
