@@ -1,5 +1,4 @@
 # Event AI Assistant
-यह project event management के लिए role-based AI assistant है।
 
 ## Features
 - Google Calendar integration
@@ -7,3 +6,11 @@
 - Drive integration
 - Maps integration
 - Tasks integration
+
+## How to Run
+1. Clone the repository:
+   git clone https://github.com/shimpeeyadav414-cmd/event-ai-assistant.git
+2. Install dependencies:
+   pip install -r requirements.txt
+3. Run the app:
+   python app.py
