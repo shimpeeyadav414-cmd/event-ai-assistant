@@ -21,3 +21,8 @@
 - Commit your changes and push:
   git push origin feature/your-feature
 - Open a Pull Request on GitHub.
+## Features
+- Google Calendar Integration: Event reminders
+- Gmail Integration: Invitations
+- Google Maps Integration: Location navigation
+- Tasks Integration: Volunteer assignments
